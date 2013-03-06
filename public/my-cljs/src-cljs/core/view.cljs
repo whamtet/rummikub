@@ -1,0 +1,185 @@
+(ns core.view
+  (:require [core.helpers :as helpers]
+            [jayq.core :as jayq]
+            jayq.util
+            )
+  )
+(.log js/console "loading core.view")
+
+
+(def max-game-width 600)
+(def max-game-height 500)
+
+(def game-width (atom nil))
+(def game-height (atom nil))
+(def rack-height 100)
+;(def table-height (atom nil))
+
+(def fixed-window-width (atom nil))
+(def fixed-window-height (atom nil))
+
+(defn xy->grid [x y]
+  [(->
+     (/ (- x rack-padding) (+ tile-width tile-margin))
+     (quot 1) int)
+   (->
+     (/ (- y (- @game-height rack-height) rack-padding) (+ tile-height tile-margin))
+     (quot 1) int)])
+
+(defn check []
+  (.log js/console @game-height))
+
+(defn on-table? [[x y]]
+  (< y (- @game-height rack-height)))
+
+(defn animate [id points m]
+  ;(.log js/console (.toString points))
+  ;(def a (jayq/$ (str "#" id)))
+  (let [
+    tile-to-animate (jayq/$ (str "#" id))
+    ;points (vec (filter identity points))
+    
+    points (vec (filter (fn [[x y]] (< y (- @game-height rack-height))) points))
+    [x y] (peek points)
+    ]
+    ;(.log js/console (.toString points))
+    (.show tile-to-animate)
+    (doseq [[x y] points]
+      (.animate tile-to-animate (jayq.util/clj->js
+                  {:top y :left x}) 30))
+    (.animate tile-to-animate 
+                              (jayq.util/clj->js {:top y :left x})
+                              (jayq.util/clj->js 
+                                {:complete 
+                                 (fn [] (core.controller/finish_update m))
+                                 :queue true}) 0)))
+
+(defn set-dims [game other-window-width other-window-height]
+  (let [
+    other-window-width (or other-window-width 9999)
+    other-window-height (or other-window-height 9999)
+    window-width (min other-window-width
+                      (-> js/window .-innerWidth))
+    window-height (min other-window-height
+                       (-> js/window .-innerHeight))
+    curr-game-width (min max-game-width (- window-width 20))
+    curr-game-height (min max-game-height (- window-height 120))
+    curr-table-height (- curr-game-height rack-height)
+;    game (or game @core.model/game)
+    game (-> game
+          (core.model/reposition-tiles curr-game-width curr-table-height)
+           #_display-game)
+    ]
+    [game curr-game-width curr-game-height]))
+
+
+;(def game-width 600)
+;(def game-height 500)
+;(def table-height 400)
+;(def rack-height 100)
+
+(def tile-width 20)
+(def tile-height 35)
+(def base-tile-style
+  {:position "absolute" :border "1px solid #999"
+   :width tile-width :height tile-height
+   :vertical-align "middle"
+   :text-align "center"
+   ;:filter "Alpha(Opacity=100)"
+   :background "#FFFFFF"})
+
+(def tile-margin 3)
+(def rack-padding 10)
+
+(defn find-next-empty [game v]
+  (let [
+    mine (filter #(= (js/local.get_player) (:location %)) (vals game))
+    taken (into #{} (map #(vector (:grid-x %) (:grid-y %)) mine))
+    next (fn [[j i]] (if (= 0 i) [j 1] [(inc j) 0]))
+    ]
+    (loop [v v]
+      (if (contains? taken v)
+        (recur (next v))
+        v))))
+
+(defn disp-tile [tile game-width game-height table-height]
+  
+  (let [
+     top (if (contains? tile :grid-y) 
+           (+ table-height rack-padding (* (+ tile-height tile-margin) (:grid-y tile)))
+           (:y tile))
+     left (if (contains? tile :grid-x)
+            (+ rack-padding (* (+ tile-width tile-margin) (:grid-x tile)))
+            (:x tile))
+     style (assoc base-tile-style :top top :left left :color (:color tile))
+     number (:number tile)
+     ]
+    [:div {:id (:id tile) :class (str "tilefrom" (:location tile)) 
+           :style style
+           }
+     (if (= 0 number) ":-)" number)]
+    ))
+
+
+(defn make-game [game game-width game-height]
+  (let [table-height (- game-height rack-height)
+        my-turn? (= (js/local.get_turn) (js/local.get_player))
+        pool-available? (some #(= "pool" (:location %)) (vals game))
+        enable-when (fn [? m] (if ? m (assoc m :disabled "true")))
+        empty-rack? (not (some #(= (js/local.get_player) (:location %)) (vals game)))
+;        state-now (into #{} (map #(select-keys % [:color :number :location]) (vals game)))
+;        game-changed? (not= @core.model/state-at-start state-now)
+        ;game-changed? true
+        ]
+  (list
+  
+  [:div {:id "public" :style {:border "1px solid #999"
+                              :max-width game-width
+                              }}
+  [:div {:style {
+                :width game-width
+                :height table-height
+                }
+         :id "table"}
+   ]
+  [:div {:id "rack" :style {:width game-width :height rack-height
+                            :background "#7FFFD4"}}]]
+  
+  [:div {:style {:border "1px solid #999"
+                 :width game-width
+                 ;:max-height 30
+                 ;:white-space "nowrap"
+                 ;:overflow "hidden"
+                 :text-align "center"}}
+     [:input (enable-when (and pool-available? my-turn?) {:id "pick_up_button" :type "button" :value "Pick up" :onclick "core.controller.pick_up();"})]
+     [:input (enable-when (and (not (core.model/same-as-start? game)) my-turn?) {:id "pass_button" :type "button" :value "Pass" :onclick "core.controller.pass();"})]
+     ;[:input (enable-when my-turn? {:type "button" :value "Pick up and sort" :onclick "core.controller
+     ;[:input {:type "button" :value "Refresh"}]
+     [:input (enable-when my-turn? {:id "sort_tiles_button" :type "button" :value "Sort my tiles" :onclick "core.controller.sort_tiles();"})]
+     [:input (enable-when empty-rack? {:type "button" :value "Rummikub!" :onclick "core.controller.rummikub();"})]
+     
+     ;[:input {:type "button" :value "Update" :onclick "core.controller.post_update()"}]
+     (if (= 1 (js/local.get_player))
+       [:div {:style {:color "red"}} "You are red"]
+       [:div {:style {:color "blue"}} "You are blue"])
+     (if (= 1 (js/local.get_turn))
+       [:div {:id "msg" :style {:color "red"}} "Red's turn"]
+       (if (= 2 (js/local.get_turn))
+         [:div {:id "msg" :style {:color "blue"}} "Blue's turn"]
+         [:div {:id "msg"} "Passing..."]))
+     ]
+  (for [tile (vals game)]
+    (disp-tile tile game-width game-height table-height))
+  #_(for [tile (filter #(or (= (js/local.get_player) (:location %)) (= "table" (:location %))) (vals game))]
+     (disp-tile tile game-width game-height table-height))
+  )))
+
+(def game-div (.getElementById js/document "game_div"))
+ 
+(defn display-game [game game-width game-height]
+  (set! (.-innerHTML game-div) (helpers/html (make-game game game-width game-height)))
+  (if (= (js/local.get_player) (js/local.get_turn)) (js/controller.after_display game-width game-height (js/local.get_player)))
+  ;finally we must hide other tiles
+  (let [other-player (- 3 (js/local.get_player))]
+    (.hide (jayq/$ (str ".tilefrompool, .tilefrom" other-player))))
+  game)

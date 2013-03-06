@@ -1,0 +1,88 @@
+(ns core.model)
+(.log js/console "loading core.model")
+
+(defn get-game []
+  (let [
+    game 
+    (-> (repeat 2 (for [i (range 1 14) color ["red" "orange" "blue" "black"]]
+        {:location "pool" :x 0 :y 0 :number i :color color}))
+    flatten
+    (conj {:location "pool" :x 0 :y 0 :number 0 :color "red"})
+    (conj {:location "pool" :x 0 :y 0 :number 0 :color "black"})
+    )
+    ids (for [i (range 106)] (str "tile" i))
+    f (fn [id tile] (assoc tile :id id))
+    game (zipmap ids (map f ids game))
+    ]
+    game))
+
+
+(defn restore [vals]
+  (zipmap (map :id vals) vals))
+
+(defn claim [game n]
+  (let [
+    available (filter #(= "pool" (:location %)) (vals game))
+    [mine rest] (split-at n (shuffle available))
+    mine (map #(assoc % :location (js/local.get_player)) mine)
+    second-map (restore (concat mine rest))
+    ]
+    (merge game second-map)))
+
+(defn pick-up-no-sort [game]
+  (let [
+    new-tile (some #(if (= "pool" (:location %)) %) (shuffle (vals game)))
+    mine (filter #(= (js/local.get_player) (:location %)) (vals game))
+    new-tile-row (condp = (:color new-tile)
+                   "red" 0
+                   "orange" 0
+                   "blue" 1
+                   "black" 1)
+    tiles-from-this-row (filter #(= new-tile-row (:grid-y %)) mine)
+    
+    new-tile-col (inc (apply max (map #(:grid-x %) tiles-from-this-row)))
+    new-tile (assoc new-tile :location (js/local.get_player) 
+                    :grid-x new-tile-col :grid-y new-tile-row)
+    ]
+    ;(.log js/console (.toString (vec tiles-from-this-row)))
+    (assoc game (:id new-tile) new-tile)))
+        
+
+(defn my-sort [game]
+  (let [
+    mine (filter #(= (js/local.get_player) (:location %)) (vals game))
+    set-grid (fn [c i offset]
+               (let [
+                   this-color (sort-by :number (filter #(= c (:color %)) mine))
+                   ]
+                 ;this-color
+                 (for [j (range (count this-color))]
+                   (assoc (nth this-color j) :grid-y i :grid-x (+ j offset)))))
+    reds (set-grid "red" 0 0)
+    blues (set-grid "blue" 1 0)
+    offset (inc (max (count reds) (count blues)))
+    oranges (set-grid "orange" 0 offset)
+    blacks (set-grid "black" 1 offset)
+    ]
+    ;reds
+    (merge game (restore (concat reds oranges blues blacks)))))
+
+(def game (atom nil))
+(def state-at-start (atom nil))
+(defn record-state [game]
+  (reset! state-at-start (game->state game)))
+(defn game->state [game]
+  (into #{} (map #(select-keys % [:color :number :location]) (vals game))))
+(defn same-as-start?
+  ([] (same-as-start? @game))
+  ([game]
+  (= (game->state game) @state-at-start)))
+
+(defn check []
+  (.log js/console (.toString @game)))
+
+(defn reposition-tiles [game curr-game-width curr-table-height]
+  (into {} (for [[k v] game]
+            [k (assoc v :x (min (:x v) curr-game-width)
+                      :y (min (:y v) curr-table-height))])))
+
