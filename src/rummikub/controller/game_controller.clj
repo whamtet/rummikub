@@ -1,40 +1,45 @@
 (ns rummikub.controller.game-controller
   (:import [com.google.appengine.api.channel ChannelServiceFactory ChannelMessage]
-           java.io.File
-           )
-  (:use ring.util.response
-        )
+           java.io.File)
+  (:use ring.util.response)
   )
- 
-(defn is-local []
-  (or (.startsWith (System/getProperty "os.name") "Windows") (= "/h" (.substring (System/getProperty "user.dir") 0 2))))
 
-#_(defn get-message-filename []
-  (let [
-    num-files (-> (File. "public/messages") .listFiles)
-    fn (str "a" num-files ".txt")
-    ]
-    (if (is-local) (spit (str "public/messages/" fn) ""))
-    fn))
+(defn is-local?
+  "are we running on localhost?"
+  [request]
+  (= "localhost" (:server-name request)))
 
-(defn create-channel [channel]
+(defn create-channel
+  "Creates a persistent connection between the server and client
+   using the Channel API.  Returns a key to the channel as a string."
+  [channel]
   (let [channelService (ChannelServiceFactory/getChannelService)]
     (.createChannel channelService channel)))
 
-(defn javascript [s]
+(defn javascript
+  "inserts a javascript tag"
+  [s request]
   (format "<script src = \"%s%s\"></script>"
           s
-          (if (is-local)
+          (if (is-local? request)
             (str "?a=" (rand-int 1000))
             "")))
 
-#_(defn game-controller [request]
-  (response "hi"))
-(defn game-controller [request]
-  (let [player (-> request :params :player)
-        channel (if (= "1" player) "abc" "def")
+(defn game-controller
+  "Servlet for the url mapping /game
+   This creates a new game for player 1
+   and joins and existing one for player 2"
+  [request]
+  (let [;player is 1 or 2
+        player (-> request :params :player)
+        ;a channel name so that each player can update its moves to its opponent
+        channel-name (if (= "1" player) "abc" "def")
         ]
-    (if (is-local) (do
+    ;Unfortunately there's a bug in the Google App Engine SDK.
+    ;The Channel does not work in local development, so we write
+    ;to and read from local files to post messages between players.
+    ;The files must be cleared before beginning
+    (if (is-local? request) (do
                      (spit "public/messageFor1.txt" "")
                      (spit "public/messageFor2.txt" "")
                      (loop []
@@ -44,7 +49,8 @@
                        (if (not= "" (slurp "http://localhost:8080/messageFor2.txt"))
                          (recur)))
                      ))
-  (response (str "
+    ;return html to the client
+    (response (str "
 <html><head>
 <link href=\"/stylesheets/game.css\" rel=\"stylesheet\" type=\"text/css\" />
 </head>
@@ -53,11 +59,12 @@
 <div id = \"game_div\">
 </div>
 <script>
+<!-- some basic parameters to start the game -->
 player = "player";
 turn = 1;
-channel_token = '"(create-channel channel)"';
+channel_token = '"(create-channel channel-name)"';
 channel = '"channel"';
-is_local = "(is-local)";
+is_local = "(is-local? request)";
 
 <!--now we must define getters and setters to handle optimizations -->
 local = {};
@@ -69,11 +76,11 @@ local.get_is_local = function() {return is_local;};
 <audio id=\"sound_handle\" style=\"display: none;\" src = \"your_turn.wav\" type = \"audio/wav\"></audio>
 <!--jquery--><script src=\"//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js\"></script>
 <!--jquery-ui--><script src=\"//ajax.googleapis.com/ajax/libs/jqueryui/1.9.2/jquery-ui.min.js\"></script>
-<script src = \"/javascript/jquery.crSpline.js\"></script>
+<!-- <script src = \"/javascript/jquery.crSpline.js\"></script> -->
 <!--direct javascript-->
 <script src = \"/_ah/channel/jsapi\"></script>
-"(javascript "/javascript/controller.js")"
-"(javascript "/javascript/view.js")"
+"(javascript "/javascript/controller.js" request)"
+"(javascript "/javascript/view.js" request)"
 <script src = \"/javascript/channel.js\"></script>
 <script src = \"my-cljs/out/goog/base.js\"></script>
 <script src = \"my-cljs/main.js\"></script>
@@ -90,6 +97,5 @@ core.main.start_communication(channel_token);
 </script>
 </body>
 </html>
-                     
 "
   ))))

@@ -1,5 +1,6 @@
 channel = {}
 
+//open a google app engine channel
 channel.open_channel = function(token) {
 	var channel = new goog.appengine.Channel(token);
 
@@ -15,6 +16,6 @@ channel.open_channel = function(token) {
 			'onerror': onError,
 			'onclose': function() {}
 	};
-	
+
     var	socket = channel.open(handler);
 };

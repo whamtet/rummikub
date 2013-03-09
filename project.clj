@@ -10,7 +10,8 @@
                                   [speclj "2.2.0"]]}}
   :test-paths ["spec/"]
   :java-source-paths ["src/"]
-  :repl-options {:init (do (use 'gaeshi.tsukuri.environment) (setup-environment "rummikub-development"))}
+;  :repl-options {:init (do (use 'gaeshi.tsukuri.environment) (setup-environment "rummikub-development"))}
+  :repl-options {:init (do (load "rummikub/controller/game_controller") (in-ns 'rummikub.controller.game-controller))}
   :plugins [[speclj "2.2.0"]]
 
   )
