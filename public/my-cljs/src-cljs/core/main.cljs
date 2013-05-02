@@ -1,4 +1,7 @@
-(ns core.main)
+(ns core.main
+  (:require
+   [cljs.reader :as reader]
+   ))
 (.log js/console "loading core.main")
 
 ;open link between two players
@@ -25,9 +28,11 @@
           "Waiting for other player..."))
   ;otherwise player 1.  Start new game
   (let [
-    [game game-width game-height]
-    (-> (core.model/get-game) (core.model/claim 14)
-      core.model/my-sort (core.view/set-dims nil nil))
+    game (.get_game_str js/local)
+    game (if (= "" game)
+           (-> (core.model/get-game) (core.model/claim 14) core.model/my-sort)
+           (reader/read-string game))
+    [game game-width game-height] (core.view/set-dims game nil nil)
     ]
     (core.model/record-state game)
     (core.view/display-game game game-width game-height)

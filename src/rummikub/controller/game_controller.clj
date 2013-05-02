@@ -9,6 +9,7 @@
   [request]
   (= "localhost" (:server-name request)))
 
+;(defn create-channel [channel] "hi")
 (defn create-channel
   "Creates a persistent connection between the server and client
    using the Channel API.  Returns a key to the channel as a string."
@@ -32,6 +33,7 @@
   [request]
   (let [;player is 1 or 2
         player (-> request :params :player)
+        game-str (if-let [bs (-> request :params :gamefile :bytes)] (.replace (String. bs) "_" " ") "")
         ;a channel name so that each player can update its moves to its opponent
         channel-name (if (= "1" player) "abc" "def")
         ]
@@ -63,8 +65,9 @@
 player = "player";
 turn = 1;
 channel_token = '"(create-channel channel-name)"';
-channel = '"channel"';
+channel = '"channel-name"';
 is_local = "(is-local? request)";
+game_str = '"game-str"';
 
 <!--now we must define getters and setters to handle optimizations -->
 local = {};
@@ -72,6 +75,7 @@ local.get_player = function() {return player;};
 local.get_turn = function() {return turn;};
 local.set_turn = function(this_turn) {turn = this_turn;};
 local.get_is_local = function() {return is_local;};
+local.get_game_str = function() {return game_str;};
 </script>
 <audio id=\"sound_handle\" style=\"display: none;\" src = \"your_turn.wav\" type = \"audio/wav\"></audio>
 <!--jquery--><script src=\"//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js\"></script>

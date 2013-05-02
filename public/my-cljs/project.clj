@@ -6,20 +6,14 @@
   :dependencies [[org.clojure/clojure "1.4.0"]
                  [jayq "1.0.0"]
                  ]
-  
-    
-    :cljsbuild
-{;:crossovers [],
- ;:crossover-path "crossover-cljs"
- :builds
- [{:source-path "src-cljs",
+
+:cljsbuild
+{:builds
+ [{:source-paths ["src-cljs"],
    :builds nil,
-   
    :compiler
    {:pretty-print false,
     :output-dir "out",
     :output-to "main.js",
-    :externs ["externs/externs.js"
-              "externs/jquery-1.8.js"]
-    :optimizations :none
-    }}]})
+    :externs ["externs/externs.js" "externs/jquery-1.8.js"],
+    :optimizations :none}}]})

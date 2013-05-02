@@ -1,6 +1,7 @@
 (ns core.controller
   (:require [cljs.reader :as reader]
             [core.helpers :as helpers]
+            [clojure.string :as string]
             jayq.util
             ))
 (.log js/console "loading core.controller")
@@ -41,6 +42,9 @@
     (reset! core.model/game game)
     (core.view/display-game game @core.view/game-width @core.view/game-height)
     (post-update-drag game)))
+
+(defn ^:export backup []
+  (.open js/window (str "data:rummikub/data," (string/replace (str @core.model/game) #" " "_"))))
 
 #_(defn ^:export set-location [game id location left top]
     (update-in game [id] #(-> % (assoc :location location :x left :y top) (dissoc :grid-y :grid-x))))

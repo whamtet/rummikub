@@ -8,6 +8,7 @@
   [request]
   (= "localhost" (:server-name request)))
 
+
 (defn send-to-channel [channel str]
   (let [channelService (ChannelServiceFactory/getChannelService)]
         (.sendMessage channelService (ChannelMessage. channel str))))

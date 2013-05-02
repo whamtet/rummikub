@@ -159,6 +159,7 @@
        [:input (enable-when my-turn? {:id "sort_tiles_button" :type "button" :value "Sort my tiles" :onclick "core.controller.sort_tiles();"})]
        ;end game button
        [:input (enable-when empty-rack? {:type "button" :value "Rummikub!" :onclick "core.controller.rummikub();"})]
+     [:input {:type "button" :value "Back up" :onclick "core.controller.backup();"}]
        (if (= 1 (js/local.get_player))
          [:div {:style {:color "red"}} "You are red"]
          [:div {:style {:color "blue"}} "You are blue"])
