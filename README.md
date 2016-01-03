@@ -1,5 +1,5 @@
 ###A simple implementation of the tile game Rummikub for Google App Engine (GAE).
-Sample available at [www.rummikub-game.appspot.com](www.rummikub-game.appspot.com).
+Sample available at [www.rummikub-game.appspot.com](http://www.rummikub-game.appspot.com).
 
 The game creates a two player virtual board with move data exchanged using GAE's Channel API.  There is no server side state, game state is stored in the browser of the current turn's player.
 
